@@ -1,6 +1,7 @@
 import sys
 import requests
 
+xml_url = "https://wtc.vaisala.com/nm10/geoserver/vaisala/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=vaisala:latestObservations&sortby=vaisala:source"
 
 def parseOptions():
     # do this and help
@@ -54,7 +55,7 @@ def printHelp():
 
 def loadData(debug):
     # get xml data as one long string
-    req = requests.request('GET', "https://wtc.vaisala.com/nm10/geoserver/vaisala/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=vaisala:latestObservations&sortby=vaisala:source&filter=%3CFilter%3E%3CAnd%3E%3CPropertyIsEqualTo%3E%3CPropertyName%3Evaisala:source%3C/PropertyName%3E%3CLiteral%3EWTC%3C/Literal%3E%3C/PropertyIsEqualTo%3E%3CPropertyIsEqualTo%3E%3CPropertyName%3Evaisala:capability_name%3C/PropertyName%3E%3CLiteral%3EVAISALA_SURFACE_OBS/AQTS_NO_UNIT_VALUE_PT1M_1%3C/Literal%3E%3C/PropertyIsEqualTo%3E%3C/And%3E%3C/Filter%3E")
+    req = requests.request('GET', xml_url)
     a = str(req.text)
     if (debug): print(a)
 
@@ -90,19 +91,16 @@ def organizeData(debug, namespaces, dataElements):
         for j in dataElements:
             if j[1:j.find(':')] == i:
                 if (debug): print('adding ' + j + ' to ' + i)
-                if j[-1] == '>':  # i am an attribute or node
-                    if ' ' in j:  #attribute
-                        key = 'attribute = ' + j[j.find(':')+1:j.find(' ')]
-                        value = j[j.find(' '):-1]
-                        dataDict[key] = value
-                    else:
-                        key = 'node'
-                        value = j[j.find(':')+1:-1]
-                        dataDict[key] = value
-                else:    # j will look like:   <namespace:key>value - note no closing >
-                    key = j[j.find(':')+1:j.find('>')]
-                    value = j[j.find('>')+1:]
+                if j[-1] == '>':  # i am a node
+                    key = 'node'
+                    value = j[j.find(':')+1:-1]
                     dataDict[key] = value
+                    if "=" in value:
+                        node_id = value[value.find('=')+1:]
+                        print(node_id)
+                        print(dataDict)
+
+
 
 
         namespaceDataDict[i] = dataDict
@@ -120,7 +118,10 @@ def returnAll(debug, namespaces, orgData):
         print('namespace = ' + eachkey)
         tempDict = orgData.get(eachkey)
         for key in tempDict:
-            print('     ' + key + ': ' + tempDict.get(key) )
+            if key == 'node':
+                print('     ' + key + ': ' + tempDict.get(key) )
+            else:
+                print('          ' + key + ': ' + tempDict.get(key))
 def main():
     debug = False
     mode = ''
